@@ -4,11 +4,10 @@ services:
   bootstrapper:
     build: .
     container_name: bootstrapper
+    stop_grace_period: 0s
     ports:
       - "3000:3000"
     volumes:
-      - .:/app
-      - /app/node_modules
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       NODE_ENV: production

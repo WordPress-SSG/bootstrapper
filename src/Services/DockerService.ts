@@ -9,7 +9,7 @@ export class DockerService {
   }
 
   public async createContainer(image: string, name: string, domain: string): Promise<string> {
-    try {
+    try {      
       const container = await this.docker.createContainer({
         Image: image,
         name: name,
