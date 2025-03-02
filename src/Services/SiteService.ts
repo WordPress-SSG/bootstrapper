@@ -1,14 +1,18 @@
 // src/Services/SiteService.ts
 import { DockerService } from "./DockerService.js";
+import { DatabaseService } from "./DatabaseService.js";
 
 export class SiteService {
   private dockerService: DockerService;
+  private databaseService: DatabaseService;
   private networkName: string = "custom-network";
   private subnet: string = "10.10.0.0/16";
   private gateway: string = "10.10.0.1";
 
   constructor() {
     this.dockerService = new DockerService();
+    this.databaseService = new DatabaseService(this.dockerService, this.networkName);
+
     this.setupNetwork();
   }
 
@@ -23,12 +27,12 @@ export class SiteService {
 
   public async createSite(siteData: { domain: string }): Promise<string> {
     try {
-      await this.createMySQLContainer("db");
-      
+      await this.databaseService.createMySQLContainer("db", siteData.domain);
+
       const containerId = await this.dockerService.createContainer(
         'ghcr.io/wordpress-ssg/dynamic-webpage:main', 
         "wp", 
-        this.networkName, // Use the predefined network
+        this.networkName, 
         siteData.domain, 
         {}, 
         80
@@ -36,26 +40,6 @@ export class SiteService {
       return `Container created with ID: ${containerId} for domain: ${siteData.domain}`;
     } catch (error) {
       throw new Error(`Failed to create site: ${(error as Error).message}`);
-    }
-  }
-
-  public async createMySQLContainer(containerName: string): Promise<string> {
-    try {
-      const containerId = await this.dockerService.createContainer(
-        "mysql:8.0.31",
-        containerName,
-        this.networkName, // Use the predefined network
-        undefined,
-        {
-          MYSQL_ROOT_PASSWORD: "db",
-          MYSQL_DATABASE: "db",
-          MYSQL_USER: "db",
-          MYSQL_PASSWORD: "db",
-        }
-      );
-      return `MySQL container created with ID: ${containerId} and name: ${containerName}`;
-    } catch (error) {
-      throw new Error(`Failed to create MySQL container: ${(error as Error).message}`);
     }
   }
 }
