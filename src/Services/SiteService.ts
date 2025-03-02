@@ -1,5 +1,5 @@
 // src/Services/SiteService.ts
-import { DockerService } from "./DockerService";
+import { DockerService } from "./DockerService.js";
 
 export class SiteService {
   private dockerService: DockerService;

@@ -1,5 +1,5 @@
 import express, { Express } from "express";
-import { Server } from "./Server";
+import { Server } from "./Server.js";
 
 export class App {
   private server: Server;

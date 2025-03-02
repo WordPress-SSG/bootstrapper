@@ -5,6 +5,7 @@
     "socket.io": "^4.8.1",
     "typescript": "^5.8.2"
   },
+  "type": "module",
   "devDependencies": {
     "@types/dockerode": "^3.3.35",
     "@types/express": "^5.0.0"

@@ -1,6 +1,6 @@
 import express, { Express } from "express";
 import http from "http";
-import siteRouter from "./Routes/siteRouter";
+import siteRouter from "./Routes/siteRouter.js";
 
 export class Server {
   private app: Express;
