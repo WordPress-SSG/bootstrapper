@@ -8,9 +8,9 @@ export class SiteService {
     this.dockerService = new DockerService();
   }
 
-  public async createSite(siteData: { image: string; name: string; domain: string }): Promise<string> {
+  public async createSite(siteData: { domain: string }): Promise<string> {
     try {
-      const containerId = await this.dockerService.createContainer(siteData.image, siteData.name, siteData.domain);
+      const containerId = await this.dockerService.createContainer('ghcr.io/wordpress-ssg/dynamic-webpage:main', "wp", siteData.domain);
       return `Container created with ID: ${containerId} for domain: ${siteData.domain}`;
     } catch (error) {
       throw new Error(`Failed to create site: ${(error as Error).message}`);
