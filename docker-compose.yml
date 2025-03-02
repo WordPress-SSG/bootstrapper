@@ -14,3 +14,17 @@ services:
       NODE_ENV: production
     command: ["node", "dist/index.js"]
     restart: unless-stopped  # Ensures the container restarts if it crashes
+    networks:
+      - custom-network
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+    networks:
+      - custom-network
+
+networks:
+  custom-network:
+    external: true
