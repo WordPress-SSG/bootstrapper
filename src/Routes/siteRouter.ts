@@ -19,7 +19,7 @@ siteRouter.post("/createSite", async (req: Request, res: Response) => {
     const newSite = await siteService.createSite(siteData);
     res.status(201).json(newSite);
   } catch (error) {
-    res.status(500).json({ error: "Failed to create site", details: error.message });
+    res.status(500).json({ error: "Failed to create site", details: (error as Error).message });
   }
 });
 
