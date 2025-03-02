@@ -8,7 +8,7 @@ export class DatabaseService {
     private networkName: string;
 
     // Constants
-    private static readonly MYSQL_IMAGE = "mysql:8.0.31";
+    private static readonly MYSQL_IMAGE = "mariadb:10.5.12";
     private static readonly MYSQL_ENV_VARS = {
         MYSQL_ROOT_PASSWORD: "db",
         MYSQL_DATABASE: "db",
@@ -16,7 +16,7 @@ export class DatabaseService {
         MYSQL_PASSWORD: "db",
     };
 
-    private static readonly DATABASES_DIR = "/databases";
+    private static readonly DATABASES_DIR = "/tmp/databases";
 
     constructor(dockerService: DockerService, networkName: string) {
         this.dockerService = dockerService;
@@ -80,6 +80,7 @@ export class DatabaseService {
                 undefined,
                 { [`${databasePath}/var/lib/mysql/`]: "/var/lib/mysql/" }
             );
+            await this.waitForMySQL(containerName);
 
             return `MySQL container recreated with ID: ${newContainerId} and name: ${containerName}, database extracted to ${databasePath}`;
         } catch (error) {
@@ -87,16 +88,15 @@ export class DatabaseService {
         }
     }
 
-    private async waitForMySQL(containerName: string, maxRetries = 10, delay = 5000): Promise<void> {
+    private async waitForMySQL(containerName: string, maxRetries = 100, delay = 500): Promise<void> {
         let attempts = 0;
         while (attempts < maxRetries) {
-            console.log({attempts})
             try {
                 const result = await this.dockerService.executeCommand(
                     containerName,
-                    ["mysqladmin", "-uroot", "ping"]
+                    ["mysqladmin", "-uroot", "-p" + DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD, "ping"]
                 );
-                if (result.includes("mysqld is alive")) {
+                if (typeof result === 'string' && result.includes("mysqld is alive")) {
                     return;
                 }
             } catch (error) {
@@ -111,8 +111,7 @@ export class DatabaseService {
     private async resetMySQLRootPassword(containerName: string): Promise<void> {
         const sqlCommands = [
             "FLUSH PRIVILEGES;",
-            `ALTER USER 'root'@'localhost' IDENTIFIED BY '${DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD}';`,
-            `ALTER USER 'root'@'%' IDENTIFIED BY '${DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD}';`,
+            `GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '${DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD}' WITH GRANT OPTION;`,
             "FLUSH PRIVILEGES;",
         ];
         const command = ["mysql", "-uroot", "-e", sqlCommands.join(" ")];
