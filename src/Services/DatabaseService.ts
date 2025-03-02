@@ -4,47 +4,124 @@ import * as fs from "fs";
 import * as unzipper from "unzipper";
 
 export class DatabaseService {
-  private dockerService: DockerService;
-  private networkName: string;
+    private dockerService: DockerService;
+    private networkName: string;
 
-  constructor(dockerService: DockerService, networkName: string) {
-    this.dockerService = dockerService;
-    this.networkName = networkName;
-  }
+    // Constants
+    private static readonly MYSQL_IMAGE = "mysql:8.0.31";
+    private static readonly MYSQL_ENV_VARS = {
+        MYSQL_ROOT_PASSWORD: "db",
+        MYSQL_DATABASE: "db",
+        MYSQL_USER: "db",
+        MYSQL_PASSWORD: "db",
+    };
 
-  private async unzipDatabase(domain: string): Promise<string> {
-    const zipPath = `/databases/db-${domain}.zip`;
-    const extractPath = `/databases/db-${domain}-unzipped`;
+    private static readonly DATABASES_DIR = "/databases";
 
-    if (!fs.existsSync(zipPath)) {
-      throw new Error(`Database ZIP file not found: ${zipPath}`);
+    constructor(dockerService: DockerService, networkName: string) {
+        this.dockerService = dockerService;
+        this.networkName = networkName;
     }
 
-    await fs.createReadStream(zipPath)
-      .pipe(unzipper.Extract({ path: extractPath }))
-      .promise();
+    private async unzipDatabase(domain: string): Promise<string> {
+        const zipPath = `${DatabaseService.DATABASES_DIR}/db-${domain}.zip`;
+        const extractPath = `${DatabaseService.DATABASES_DIR}/db-${domain}-unzipped`;
 
-    return extractPath;
-  }
-
-  public async createMySQLContainer(containerName: string, domain: string): Promise<string> {
-    try {
-      const databasePath = await this.unzipDatabase(domain);
-      const containerId = await this.dockerService.createContainer(
-        "mysql:8.0.31",
-        containerName,
-        this.networkName,
-        undefined,
-        {
-          MYSQL_ROOT_PASSWORD: "db",
-          MYSQL_DATABASE: "db",
-          MYSQL_USER: "db",
-          MYSQL_PASSWORD: "db",
+        if (!fs.existsSync(zipPath)) {
+            throw new Error(`Database ZIP file not found: ${zipPath}`);
         }
-      );
-      return `MySQL container created with ID: ${containerId} and name: ${containerName}, database extracted to ${databasePath}`;
-    } catch (error) {
-      throw new Error(`Failed to create MySQL container: ${(error as Error).message}`);
+
+        // Delete folder if it exists
+        if (fs.existsSync(extractPath)) {
+            fs.rmSync(extractPath, { recursive: true, force: true });
+        }
+
+        await fs.createReadStream(zipPath)
+            .pipe(unzipper.Extract({ path: extractPath }))
+            .promise();
+
+        return extractPath;
     }
-  }
+
+    public async createMySQLContainer(containerName: string, domain: string): Promise<string> {
+        try {
+            const databasePath = await this.unzipDatabase(domain);
+            
+            // Create initial MySQL container with password reset mode
+            const tempContainerId = await this.dockerService.createContainer(
+                DatabaseService.MYSQL_IMAGE,
+                containerName,
+                this.networkName,
+                ["mysqld", "--skip-grant-tables", "--skip-networking"],
+                undefined,
+                DatabaseService.MYSQL_ENV_VARS,
+                undefined,
+                { [`${databasePath}/var/lib/mysql/`]: "/var/lib/mysql/" }
+            );
+
+            // Wait for MySQL to be available
+            await this.waitForMySQL(containerName);
+            
+            // Reset MySQL root password
+            await this.resetMySQLRootPassword(containerName);
+            
+            // Stop and remove the temporary MySQL container
+            await this.dockerService.stopContainer(tempContainerId);
+            await this.dockerService.removeContainer(tempContainerId);
+            
+            // Create a new MySQL container with normal settings
+            const newContainerId = await this.dockerService.createContainer(
+                DatabaseService.MYSQL_IMAGE,
+                containerName,
+                this.networkName,
+                [], // No additional command parameters
+                undefined,
+                DatabaseService.MYSQL_ENV_VARS,
+                undefined,
+                { [`${databasePath}/var/lib/mysql/`]: "/var/lib/mysql/" }
+            );
+
+            return `MySQL container recreated with ID: ${newContainerId} and name: ${containerName}, database extracted to ${databasePath}`;
+        } catch (error) {
+            throw new Error(`Failed to create MySQL container: ${(error as Error).message}`);
+        }
+    }
+
+    private async waitForMySQL(containerName: string, maxRetries = 10, delay = 5000): Promise<void> {
+        let attempts = 0;
+        while (attempts < maxRetries) {
+            console.log({attempts})
+            try {
+                const result = await this.dockerService.executeCommand(
+                    containerName,
+                    ["mysqladmin", "-uroot", "ping"]
+                );
+                if (result.includes("mysqld is alive")) {
+                    return;
+                }
+            } catch (error) {
+                console.log(`Waiting for MySQL to start... (${attempts + 1}/${maxRetries})`);
+            }
+            attempts++;
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        throw new Error("MySQL did not start within the expected time.");
+    }
+
+    private async resetMySQLRootPassword(containerName: string): Promise<void> {
+        const sqlCommands = [
+            "FLUSH PRIVILEGES;",
+            `ALTER USER 'root'@'localhost' IDENTIFIED BY '${DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD}';`,
+            `ALTER USER 'root'@'%' IDENTIFIED BY '${DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD}';`,
+            "FLUSH PRIVILEGES;",
+        ];
+        const command = ["mysql", "-uroot", "-e", sqlCommands.join(" ")];
+
+        try {
+            await this.dockerService.executeCommand(containerName, command);
+            console.log("MySQL root password reset successfully.");
+        } catch (error) {
+            throw new Error(`Failed to reset MySQL root password: ${(error as Error).message}`);
+        }
+    }
 }

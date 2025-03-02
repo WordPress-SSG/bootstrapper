@@ -33,6 +33,7 @@ export class SiteService {
         'ghcr.io/wordpress-ssg/dynamic-webpage:main', 
         "wp", 
         this.networkName, 
+        undefined,
         siteData.domain, 
         {}, 
         80
