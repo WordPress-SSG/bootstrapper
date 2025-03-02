@@ -1,28 +1,26 @@
-FROM php:fpm
+# Use an official Debian-based Node.js image as the base
+FROM node:18-bullseye
 
-ARG DEBIAN_FRONTEND=noninteractive
+# Set the working directory in the container
+WORKDIR /app
 
-EXPOSE 80 443
+# Install Yarn globally
+RUN corepack enable && corepack prepare yarn@stable --activate
 
-WORKDIR /var/www/html
+# Copy package.json and yarn.lock first to optimize caching
+COPY package.json yarn.lock ./
 
-# Install required system packages
-RUN apt-get update && apt-get install -y \
-    wget \
-    curl \
-    unzip \
-    zip \
-    libcurl4-openssl-dev \
-    libxml2-dev \
-    libonig-dev && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# Install dependencies using Yarn
+RUN yarn
 
-# Install PHP extensions
-RUN docker-php-ext-install curl xml mbstring
+# Copy the rest of the application files
+COPY . .
 
-# Install WP-CLI
-RUN curl -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
-    chmod +x /usr/local/bin/wp
+# Build TypeScript files
+RUN npx tsc
 
-# Download and extract WordPress directly
-RUN wp --allow-root core download https://wordpress.org/wordpress-5.9.5.tar.gz
+# Expose the application port
+EXPOSE 3000
+
+# Command to start the application
+CMD ["node", "dist/index.js"]
