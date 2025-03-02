@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import SiteService from "../Services/SiteService";
+import { SiteService } from "../Services/SiteService";
 
 const siteRouter = Router();
 const siteService = new SiteService();
