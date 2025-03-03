@@ -47,4 +47,28 @@ export class LocalEnvService {
             throw new Error(`Failed to update user password: ${(error as Error).message}`);
         }
     }
+
+    public async build(domain: string, wpContainerId: string): Promise<string> {
+        try {
+            const wranglerConfigToml = process.env.WRANGLER_CONFIG_TOML || "";
+
+            const buildContainerId = await this.dockerService.createContainer(
+                'ghcr.io/wordpress-ssg/static-webpage:main',
+                "static-builder",
+                "custom-network",
+                undefined,
+                domain,
+                { "WRANGLER_CONFIG_TOML": wranglerConfigToml, "WP_CONTAINER_ID": wpContainerId },
+                undefined,
+                {
+                    "/tmp/wp-dist/": `/tmp/wp-dist/${domain}`,
+                },
+                'never'
+            );
+
+            return `Build container created with ID: ${buildContainerId} for domain: ${domain}, using WP container ID: ${wpContainerId}`;
+        } catch (error) {
+            throw new Error(`Failed to build static site: ${(error as Error).message}`);
+        }
+    }
 }

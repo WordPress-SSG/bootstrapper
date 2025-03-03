@@ -31,7 +31,7 @@ export class SiteService {
     }
   }
 
-  public async createSite(siteData: { domain: string }): Promise<string> {
+  public async create(siteData: { domain: string }): Promise<string> {
     try {
       const dbContainerId = await this.databaseService.createMySQLContainer("db", siteData.domain);
       const contentPath = await this.contentService.unzipContents(siteData.domain);
@@ -60,6 +60,29 @@ export class SiteService {
       return `Container created with ID: ${containerId} for domain: ${siteData.domain}`;
     } catch (error) {
       throw new Error(`Failed to create site: ${(error as Error).message}`);
+    }
+  }
+
+  public async build(siteData: { domain: string }): Promise<string> {
+    try {
+      const wranglerConfigToml = process.env.WRANGLER_CONFIG_TOML || "";
+      
+      const buildContainerId = await this.dockerService.createContainer(
+        'ghcr.io/wordpress-ssg/static-webpage:main',
+        "static-builder",
+        this.networkName,
+        undefined,
+        siteData.domain,
+        { "WRANGLER_CONFIG_TOML": wranglerConfigToml },
+        undefined,
+        {
+          "/tmp/wp-dist/": `/tmp/wp-dist/wp-static/${siteData.domain}`
+        }
+      );
+
+      return buildContainerId;
+    } catch (error) {
+      throw new Error(`Failed to build static site: ${(error as Error).message}`);
     }
   }
 }

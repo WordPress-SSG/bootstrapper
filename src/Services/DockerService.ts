@@ -12,11 +12,11 @@ export class DockerService {
     try {
       const networks = await this.docker.listNetworks();
       const existingNetwork = networks.find(net => net.Name === networkName);
-      
+
       if (existingNetwork) {
         return `Network ${networkName} already exists`;
       }
-      
+
       const network = await this.docker.createNetwork({
         Name: networkName,
         Driver: "bridge"
@@ -35,32 +35,33 @@ export class DockerService {
     domain?: string,
     envVars: Record<string, string> = {},
     port?: number,
-    volumes: Record<string, string> = {}
+    volumes: Record<string, string> = {},
+    restartPolicy: string = "always"
   ): Promise<string> {
     try {
       // Check if a container with the same name exists
       const containers = await this.docker.listContainers({ all: true });
-      const existingContainer = containers.find((container) => container.Names.includes(`/${name}`));
+      const existingContainer = containers.find(container => container.Names.includes(`/${name}`));
 
       if (existingContainer) {
         const container = this.docker.getContainer(existingContainer.Id);
-        await container.stop().catch(() => {}); // Ignore errors if already stopped
+        await container.stop().catch(() => { });
         await container.remove();
       }
-      
+
       const envArray = Object.entries(envVars).map(([key, value]) => `${key}=${value}`);
       if (domain) {
         envArray.push(`DOMAIN=${domain}`);
       }
-      
+
       const volumeBindings = Object.entries(volumes).map(([hostPath, containerPath]) => `${hostPath}:${containerPath}`);
-      
+
       const container = await this.docker.createContainer({
         Image: image,
-        name: name,
-        Cmd: cmd.length > 0 ? cmd : undefined, // Add command execution support
+        name,
+        Cmd: cmd.length > 0 ? cmd : undefined,
         HostConfig: {
-          RestartPolicy: { Name: 'always' },
+          RestartPolicy: { Name: restartPolicy },
           PortBindings: port ? { [`${port}/tcp`]: [{ HostPort: `${port}` }] } : undefined,
           NetworkMode: network,
           Binds: volumeBindings.length > 0 ? volumeBindings : undefined,
@@ -88,7 +89,7 @@ export class DockerService {
   public async removeContainer(containerId: string): Promise<string> {
     try {
       const container = this.docker.getContainer(containerId);
-      await container.stop().catch(() => {}); // Ignore errors if already stopped
+      await container.stop().catch(() => { }); // Ignore errors if already stopped
       await container.remove();
       return `Container ${containerId} removed successfully`;
     } catch (error) {
@@ -104,9 +105,9 @@ export class DockerService {
         AttachStdout: true,
         AttachStderr: true
       });
-      
+
       const stream = await exec.start({});
-      
+
       return new Promise((resolve, reject) => {
         let output = '';
         stream.on('data', (chunk) => {
