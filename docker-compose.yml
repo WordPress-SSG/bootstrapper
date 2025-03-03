@@ -9,6 +9,7 @@ services:
       - "3000:3000"
     volumes:
       - /tmp/databases/:/tmp/databases/
+      - /tmp/contents/:/tmp/contents/
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       NODE_ENV: production

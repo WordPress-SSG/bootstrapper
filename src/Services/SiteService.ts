@@ -2,11 +2,13 @@
 import { DockerService } from "./DockerService.js";
 import { DatabaseService } from "./DatabaseService.js";
 import { LocalEnvService } from "./LocalEnvService.js";
+import { ContentService } from "./ContentService.js";
 
 export class SiteService {
   private dockerService: DockerService;
   private databaseService: DatabaseService;
   private localEnvService: LocalEnvService;
+  private contentService: ContentService;
   private networkName: string = "custom-network";
   private subnet: string = "10.10.0.0/16";
   private gateway: string = "10.10.0.1";
@@ -15,6 +17,7 @@ export class SiteService {
     this.dockerService = new DockerService();
     this.databaseService = new DatabaseService(this.dockerService, this.networkName);
     this.localEnvService = new LocalEnvService(this.dockerService);
+    this.contentService = new ContentService();
 
     this.setupNetwork();
   }
@@ -31,6 +34,7 @@ export class SiteService {
   public async createSite(siteData: { domain: string }): Promise<string> {
     try {
       const dbContainerId = await this.databaseService.createMySQLContainer("db", siteData.domain);
+      const contentPath = await this.contentService.unzipContents(siteData.domain);
 
       const containerId = await this.dockerService.createContainer(
         'ghcr.io/wordpress-ssg/dynamic-webpage:main',
@@ -39,7 +43,14 @@ export class SiteService {
         undefined,
         siteData.domain,
         {},
-        80
+        80,
+        {
+          "/wp-ssg/plugins/": "/var/www/html/wp-content/plugins/",
+          "/wp-ssg/purchases/": "/var/www/html/wp-content/themes/",
+          [`${contentPath}/var/www/html/wp-content/fonts/`]: "/var/www/html/wp-content/fonts/",
+          [`${contentPath}/var/www/html/wp-content/languages/`]: "/var/www/html/wp-content/languages/",
+          [`${contentPath}/var/www/html/wp-content/uploads/`]: "/var/www/html/wp-content/uploads/"
+        }
       );
 
       await this.databaseService.copyDatabaseIfExists(dbContainerId, 'wp', 'db');
