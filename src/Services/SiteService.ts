@@ -38,6 +38,7 @@ export class SiteService {
         {}, 
         80
       );
+      await this.databaseService.updateLocalEnvOptions(containerId)
       return `Container created with ID: ${containerId} for domain: ${siteData.domain}`;
     } catch (error) {
       throw new Error(`Failed to create site: ${(error as Error).message}`);
