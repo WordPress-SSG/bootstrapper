@@ -43,7 +43,8 @@ export class SiteService {
       );
 
       await this.databaseService.copyDatabaseIfExists(dbContainerId, 'wp', 'db');
-      await this.localEnvService.updateLocalEnvOptions(dbContainerId); // Now using LocalEnvService
+      await this.localEnvService.updateLocalEnvOptions(dbContainerId);
+      await this.localEnvService.updateUserPassword(dbContainerId, 'root');
 
       return `Container created with ID: ${containerId} for domain: ${siteData.domain}`;
     } catch (error) {

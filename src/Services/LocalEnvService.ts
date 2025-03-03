@@ -1,6 +1,7 @@
 // src/Services/LocalEnvService.ts
 import { DockerService } from "./DockerService.js";
 import { DatabaseService } from "./DatabaseService.js";
+import { createHash } from "crypto";
 
 export class LocalEnvService {
     private dockerService: DockerService;
@@ -24,6 +25,26 @@ export class LocalEnvService {
             console.log("Updated wp_options to replace HTTPS with HTTP successfully.");
         } catch (error) {
             throw new Error(`Failed to update wp_options: ${(error as Error).message}`);
+        }
+    }
+
+    public async updateUserPassword(containerName: string, username: string): Promise<void> {
+        // Hash password using MD5 (not recommended for security)
+        const hashedPassword = createHash('md5').update('root').digest('hex');
+        const sqlCommand = `UPDATE wp_users SET user_pass = '${hashedPassword}' WHERE user_login = '${username}';`;
+        const command = [
+            "mysql",
+            "-u", DatabaseService.MYSQL_ENV_VARS.MYSQL_USER,
+            "-p" + DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD,
+            DatabaseService.MYSQL_ENV_VARS.MYSQL_DATABASE,
+            "-e", sqlCommand
+        ];
+
+        try {
+            await this.dockerService.executeCommand(containerName, command);
+            console.log(`Password updated successfully for user: ${username}`);
+        } catch (error) {
+            throw new Error(`Failed to update user password: ${(error as Error).message}`);
         }
     }
 }
