@@ -63,7 +63,7 @@ export class LocalEnvService {
                 {
                     "/tmp/wp-dist/": `/tmp/wp-dist/${domain}`,
                 },
-                'never'
+                'on-failure'
             );
 
             return `Build container created with ID: ${buildContainerId} for domain: ${domain}, using WP container ID: ${wpContainerId}`;

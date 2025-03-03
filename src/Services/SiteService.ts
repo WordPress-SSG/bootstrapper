@@ -62,27 +62,4 @@ export class SiteService {
       throw new Error(`Failed to create site: ${(error as Error).message}`);
     }
   }
-
-  public async build(siteData: { domain: string }): Promise<string> {
-    try {
-      const wranglerConfigToml = process.env.WRANGLER_CONFIG_TOML || "";
-      
-      const buildContainerId = await this.dockerService.createContainer(
-        'ghcr.io/wordpress-ssg/static-webpage:main',
-        "static-builder",
-        this.networkName,
-        undefined,
-        siteData.domain,
-        { "WRANGLER_CONFIG_TOML": wranglerConfigToml },
-        undefined,
-        {
-          "/tmp/wp-dist/": `/tmp/wp-dist/wp-static/${siteData.domain}`
-        }
-      );
-
-      return buildContainerId;
-    } catch (error) {
-      throw new Error(`Failed to build static site: ${(error as Error).message}`);
-    }
-  }
 }
