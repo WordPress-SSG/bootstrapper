@@ -48,7 +48,7 @@ export class LocalEnvService {
         }
     }
 
-    public async build(domain: string, wpContainerId: string): Promise<string> {
+    public async build(domain: string, wpContainerId: string, IPAddress: string): Promise<string> {
         try {
             const wranglerConfigToml = process.env.WRANGLER_CONFIG_TOML || "";
 
@@ -63,7 +63,10 @@ export class LocalEnvService {
                 {
                     "/tmp/wp-dist/": `/tmp/wp-dist/${domain}`,
                 },
-                'on-failure'
+                'on-failure',
+                {
+                    domain: IPAddress
+                }
             );
 
             return `Build container created with ID: ${buildContainerId} for domain: ${domain}, using WP container ID: ${wpContainerId}`;

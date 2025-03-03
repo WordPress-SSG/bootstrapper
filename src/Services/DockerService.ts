@@ -36,7 +36,8 @@ export class DockerService {
     envVars: Record<string, string> = {},
     port?: number,
     volumes: Record<string, string> = {},
-    restartPolicy: string = "always"
+    restartPolicy: string = "always",
+    extraHosts: Record<string, string> = {}
   ): Promise<string> {
     try {
       // Check if a container with the same name exists
@@ -55,6 +56,7 @@ export class DockerService {
       }
 
       const volumeBindings = Object.entries(volumes).map(([hostPath, containerPath]) => `${hostPath}:${containerPath}`);
+      const extraHostsArray = Object.entries(extraHosts).map(([host, ip]) => `${host}:${ip}`);
 
       const container = await this.docker.createContainer({
         Image: image,
@@ -65,6 +67,7 @@ export class DockerService {
           PortBindings: port ? { [`${port}/tcp`]: [{ HostPort: `${port}` }] } : undefined,
           NetworkMode: network,
           Binds: volumeBindings.length > 0 ? volumeBindings : undefined,
+          ExtraHosts: extraHostsArray.length > 0 ? extraHostsArray : undefined,
         },
         Env: envArray,
       });
@@ -118,6 +121,22 @@ export class DockerService {
       });
     } catch (error) {
       throw new Error(`Failed to execute command: ${(error as Error).message}`);
+    }
+  }
+
+  public async getContainerIP(containerId: string, networkName: string): Promise<string> {
+    try {
+      const container = this.docker.getContainer(containerId);
+      const data = await container.inspect();
+      const networks = data.NetworkSettings.Networks;
+      
+      if (!networks || !networks[networkName]) {
+        throw new Error(`Network ${networkName} not found for container ${containerId}`);
+      }
+      
+      return networks[networkName].IPAddress;
+    } catch (error) {
+      throw new Error(`Failed to get container IP: ${(error as Error).message}`);
     }
   }
 }
