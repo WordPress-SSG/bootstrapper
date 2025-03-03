@@ -9,7 +9,7 @@ export class DatabaseService {
 
     // Constants
     private static readonly MYSQL_IMAGE = "mariadb:10.5.12";
-    private static readonly MYSQL_ENV_VARS = {
+    public static readonly MYSQL_ENV_VARS = {
         MYSQL_ROOT_PASSWORD: "db",
         MYSQL_DATABASE: "db",
         MYSQL_USER: "db",
@@ -46,7 +46,7 @@ export class DatabaseService {
     public async createMySQLContainer(containerName: string, domain: string): Promise<string> {
         try {
             const databasePath = await this.unzipDatabase(domain);
-            
+
             // Create initial MySQL container with password reset mode
             const tempContainerId = await this.dockerService.createContainer(
                 DatabaseService.MYSQL_IMAGE,
@@ -61,14 +61,13 @@ export class DatabaseService {
 
             // Wait for MySQL to be available
             await this.waitForMySQL(containerName);
-            
-            // Reset MySQL root password
-            await this.resetMySQLRootPassword(containerName);
-            
+
+            await this.resetMySQLPassword(containerName);
+
             // Stop and remove the temporary MySQL container
             await this.dockerService.stopContainer(tempContainerId);
             await this.dockerService.removeContainer(tempContainerId);
-            
+
             // Create a new MySQL container with normal settings
             const newContainerId = await this.dockerService.createContainer(
                 DatabaseService.MYSQL_IMAGE,
@@ -82,7 +81,9 @@ export class DatabaseService {
             );
             await this.waitForMySQL(containerName);
 
-            return `MySQL container recreated with ID: ${newContainerId} and name: ${containerName}, database extracted to ${databasePath}`;
+            console.log(`MySQL container recreated with ID: ${newContainerId} and name: ${containerName}, database extracted to ${databasePath}`);
+
+            return containerName;
         } catch (error) {
             throw new Error(`Failed to create MySQL container: ${(error as Error).message}`);
         }
@@ -94,7 +95,7 @@ export class DatabaseService {
             try {
                 const result = await this.dockerService.executeCommand(
                     containerName,
-                    ["mysqladmin", "-uroot", "-p" + DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD, "ping"]
+                    ["mysqladmin", "-u", DatabaseService.MYSQL_ENV_VARS.MYSQL_PASSWORD, "-p" + DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD, "ping"]
                 );
                 if (typeof result === 'string' && result.includes("mysqld is alive")) {
                     return;
@@ -108,13 +109,13 @@ export class DatabaseService {
         throw new Error("MySQL did not start within the expected time.");
     }
 
-    private async resetMySQLRootPassword(containerName: string): Promise<void> {
+    private async resetMySQLPassword(containerName: string): Promise<void> {
         const sqlCommands = [
             "FLUSH PRIVILEGES;",
-            `GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '${DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD}' WITH GRANT OPTION;`,
+            `GRANT ALL PRIVILEGES ON *.* TO '${DatabaseService.MYSQL_ENV_VARS.MYSQL_USER}'@'%' IDENTIFIED BY '${DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD}' WITH GRANT OPTION;`,
             "FLUSH PRIVILEGES;",
         ];
-        const command = ["mysql", "-uroot", "-e", sqlCommands.join(" ")];
+        const command = ["mysql", "-u", DatabaseService.MYSQL_ENV_VARS.MYSQL_USER, "-e", sqlCommands.join(" ")];
 
         try {
             await this.dockerService.executeCommand(containerName, command);
@@ -124,15 +125,25 @@ export class DatabaseService {
         }
     }
 
-    public async updateLocalEnvOptions(containerName: string): Promise<void> {
-        const sqlCommand = "UPDATE wp_options SET option_value = REPLACE(option_value, 'https://', 'http://') WHERE option_name IN ('siteurl', 'home');";
-        const command = ["mysql", "-uroot", "-p" + DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD, "-e", sqlCommand];
-        
+    public async copyDatabaseIfExists(containerName: string, sourceDb: string, targetDb: string): Promise<void> {
+        const checkDbCommand = `mysql -u ${DatabaseService.MYSQL_ENV_VARS.MYSQL_USER} -p${DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD} -e \"SHOW DATABASES LIKE '${sourceDb}';\"`;
+        const dumpCommand = `mysqldump -u ${DatabaseService.MYSQL_ENV_VARS.MYSQL_USER} -p${DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD} ${sourceDb} > /tmp/${sourceDb}.sql`;
+        const createCommand = `mysql -u ${DatabaseService.MYSQL_ENV_VARS.MYSQL_USER} -p${DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD} -e \"CREATE DATABASE ${targetDb};\"`;
+        const importCommand = `mysql -u ${DatabaseService.MYSQL_ENV_VARS.MYSQL_USER} -p${DatabaseService.MYSQL_ENV_VARS.MYSQL_ROOT_PASSWORD} ${targetDb} < /tmp/${sourceDb}.sql`;
+
         try {
-            await this.dockerService.executeCommand(containerName, command);
-            console.log("Updated wp_options to replace HTTPS with HTTP successfully.");
+            const result = await this.dockerService.executeCommand(containerName, ["sh", "-c", checkDbCommand]);
+            if (!result.includes(sourceDb)) {
+                console.log(`Database ${sourceDb} does not exist. Skipping copy.`);
+                return;
+            }
+
+            await this.dockerService.executeCommand(containerName, ["sh", "-c", dumpCommand]);
+            await this.dockerService.executeCommand(containerName, ["sh", "-c", createCommand]);
+            await this.dockerService.executeCommand(containerName, ["sh", "-c", importCommand]);
+            console.log(`Database ${sourceDb} copied to ${targetDb} successfully.`);
         } catch (error) {
-            throw new Error(`Failed to update wp_options: ${(error as Error).message}`);
+            throw new Error(`Failed to copy database: ${(error as Error).message}`);
         }
     }
 }

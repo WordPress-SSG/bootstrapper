@@ -1,10 +1,12 @@
 // src/Services/SiteService.ts
 import { DockerService } from "./DockerService.js";
 import { DatabaseService } from "./DatabaseService.js";
+import { LocalEnvService } from "./LocalEnvService.js";
 
 export class SiteService {
   private dockerService: DockerService;
   private databaseService: DatabaseService;
+  private localEnvService: LocalEnvService;
   private networkName: string = "custom-network";
   private subnet: string = "10.10.0.0/16";
   private gateway: string = "10.10.0.1";
@@ -12,6 +14,7 @@ export class SiteService {
   constructor() {
     this.dockerService = new DockerService();
     this.databaseService = new DatabaseService(this.dockerService, this.networkName);
+    this.localEnvService = new LocalEnvService(this.dockerService);
 
     this.setupNetwork();
   }
@@ -27,18 +30,21 @@ export class SiteService {
 
   public async createSite(siteData: { domain: string }): Promise<string> {
     try {
-      await this.databaseService.createMySQLContainer("db", siteData.domain);
+      const dbContainerId = await this.databaseService.createMySQLContainer("db", siteData.domain);
 
       const containerId = await this.dockerService.createContainer(
-        'ghcr.io/wordpress-ssg/dynamic-webpage:main', 
-        "wp", 
-        this.networkName, 
+        'ghcr.io/wordpress-ssg/dynamic-webpage:main',
+        "wp",
+        this.networkName,
         undefined,
-        siteData.domain, 
-        {}, 
+        siteData.domain,
+        {},
         80
       );
-      await this.databaseService.updateLocalEnvOptions(containerId)
+
+      await this.databaseService.copyDatabaseIfExists(dbContainerId, 'wp', 'db');
+      await this.localEnvService.updateLocalEnvOptions(dbContainerId); // Now using LocalEnvService
+
       return `Container created with ID: ${containerId} for domain: ${siteData.domain}`;
     } catch (error) {
       throw new Error(`Failed to create site: ${(error as Error).message}`);
