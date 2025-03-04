@@ -61,11 +61,11 @@ export class LocalEnvService {
                 { "WRANGLER_CONFIG_TOML": wranglerConfigToml, "WP_CONTAINER_ID": wpContainerId },
                 undefined,
                 {
-                    "/tmp/wp-dist/": `/tmp/wp-dist/${domain}`,
+                    "/tmp/wp-dist/": `/data/`,
                 },
                 'on-failure',
                 {
-                    domain: IPAddress
+                    [domain]: IPAddress
                 }
             );
 

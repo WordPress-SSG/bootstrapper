@@ -3,12 +3,14 @@ import { DockerService } from "./DockerService.js";
 import { DatabaseService } from "./DatabaseService.js";
 import { LocalEnvService } from "./LocalEnvService.js";
 import { ContentService } from "./ContentService.js";
+import { PublishService } from "./PublishService.js";
 
 export class SiteService {
   private dockerService: DockerService;
   private databaseService: DatabaseService;
   private localEnvService: LocalEnvService;
   private contentService: ContentService;
+  private publishService: PublishService;
   private networkName: string = "custom-network";
   private subnet: string = "10.10.0.0/16";
   private gateway: string = "10.10.0.1";
@@ -18,6 +20,7 @@ export class SiteService {
     this.databaseService = new DatabaseService(this.dockerService, this.networkName);
     this.localEnvService = new LocalEnvService(this.dockerService);
     this.contentService = new ContentService();
+    this.publishService = new PublishService();
 
     this.setupNetwork();
   }
@@ -57,7 +60,7 @@ export class SiteService {
       await this.localEnvService.updateLocalEnvOptions(dbContainerId);
       await this.localEnvService.updateUserPassword(dbContainerId, 'root');
 
-      return `Container created with ID: ${containerId} for domain: ${siteData.domain}`;
+      return containerId;
     } catch (error) {
       throw new Error(`Failed to create site: ${(error as Error).message}`);
     }

@@ -113,7 +113,7 @@ export class DockerService {
 
       return new Promise((resolve, reject) => {
         let output = '';
-        stream.on('data', (chunk) => {
+        stream.on('data', (chunk: Buffer) => {
           output += chunk.toString();
         });
         stream.on('end', () => resolve(output));
@@ -137,6 +137,36 @@ export class DockerService {
       return networks[networkName].IPAddress;
     } catch (error) {
       throw new Error(`Failed to get container IP: ${(error as Error).message}`);
+    }
+  }
+
+  public async getContainerLogs(containerId: string, onData?: (data: string) => void): Promise<string> {
+    try {
+      const container = this.docker.getContainer(containerId);
+      const stream = await container.logs({
+        stdout: true,
+        stderr: true,
+        follow: true
+      });
+
+      return new Promise((resolve, reject) => {
+        let logs = '';
+        if (onData) {
+          stream.on('data', (chunk: Buffer) => {
+            const chunkStr = chunk.toString();
+            logs += chunkStr;
+            onData(chunkStr);
+          });
+        } else {
+        stream.on('data', (chunk) => {
+          logs += chunk.toString();
+        });
+                }
+        stream.on('end', () => resolve(logs));
+        stream.on('error', (err) => reject(`Failed to fetch logs: ${err.message}`));
+      });
+    } catch (error) {
+      throw new Error(`Failed to get container logs: ${(error as Error).message}`);
     }
   }
 }

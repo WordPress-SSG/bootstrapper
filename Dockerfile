@@ -14,7 +14,8 @@ COPY package.json yarn.lock ./
 RUN yarn
 
 # Copy the rest of the application files
-COPY . .
+COPY src src
+COPY tsconfig.json .
 
 # Build TypeScript files
 RUN npx tsc
