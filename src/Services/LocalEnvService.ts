@@ -74,7 +74,6 @@ export class LocalEnvService {
             await this.dockerService.getContainerLogs(buildContainerId, (data) => {
                 console.log("Build: " + data)
             })
-            await this.dockerService.removeContainer('wp')
 
             return `Build container created with ID: ${buildContainerId} for domain: ${domain}, using WP container ID: ${wpContainerId}`;
         } catch (error) {

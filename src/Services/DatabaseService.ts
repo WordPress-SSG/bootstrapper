@@ -2,6 +2,7 @@
 import { DockerService } from "./DockerService.js";
 import * as fs from "fs";
 import * as unzipper from "unzipper";
+import archiver from "archiver";
 
 export class DatabaseService {
     private dockerService: DockerService;
@@ -41,6 +42,39 @@ export class DatabaseService {
             .promise();
 
         return extractPath;
+    }
+
+    public async zipDatabase(domain: string): Promise<string> {
+        const dbPath = `${DatabaseService.DATABASES_DIR}/db-${domain}-unzipped`;
+        const zipPath = `${DatabaseService.DATABASES_DIR}/db-${domain}.zip`;
+
+        if (!fs.existsSync(dbPath)) {
+            throw new Error(`Database directory not found: ${dbPath}`);
+        }
+
+        // If the old zip file exists, rename it with a timestamp
+        if (fs.existsSync(zipPath)) {
+            const timestamp = new Date().toISOString().replace(/[:.-]/g, "_");
+            const backupZipPath = `${DatabaseService.DATABASES_DIR}/db-${domain}-${timestamp}.zip`;
+            fs.renameSync(zipPath, backupZipPath);
+            console.log(`Old database backup saved as: ${backupZipPath}`);
+        }
+
+        const output = fs.createWriteStream(zipPath);
+        const archive = archiver('zip', { zlib: { level: 9 } });
+
+        return new Promise((resolve, reject) => {
+            output.on('close', () => {
+                console.log(`Database successfully zipped: ${zipPath}`);
+                resolve(zipPath);
+            });
+
+            archive.on('error', (err) => reject(err));
+
+            archive.pipe(output);
+            archive.directory(dbPath, false);
+            archive.finalize();
+        });
     }
 
     public async createMySQLContainer(containerName: string, domain: string): Promise<string> {
