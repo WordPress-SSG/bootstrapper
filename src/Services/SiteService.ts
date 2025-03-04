@@ -69,4 +69,16 @@ export class SiteService {
       throw new Error(`Failed to create site: ${(error as Error).message}`);
     }
   }
+
+  public async buildAndDeploy(domain: string, containerId: string): Promise<string> {
+    try {
+      await this.localEnvService.build(domain, containerId);
+      await this.publishService.publish(domain);
+      console.log(`Site ${domain} has been published successfully.`);
+
+      return `Site ${domain} has been published successfully.`;
+    } catch (error) {
+      throw new Error(`Failed to publish site ${domain}: ${(error as Error).message}`);
+    }
+  }
 }

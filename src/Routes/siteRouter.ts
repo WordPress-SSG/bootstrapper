@@ -13,10 +13,21 @@ siteRouter.get("/status", (req: Request, res: Response) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
-siteRouter.post("/createSite", async (req: Request, res: Response) => {
+siteRouter.post("/sites/create", async (req: Request, res: Response) => {
   try {
     const siteData = req.body;
     const newSite = await siteService.create(siteData);
+    res.status(201).json(newSite);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to create site", details: (error as Error).message });
+  }
+});
+
+siteRouter.post("/sites/build-publish", async (req: Request, res: Response) => {
+  try {
+    const siteData = req.body;
+    let newSite = await siteService.buildAndDeploy(siteData.domain, 'wp');
+
     res.status(201).json(newSite);
   } catch (error) {
     res.status(500).json({ error: "Failed to create site", details: (error as Error).message });
