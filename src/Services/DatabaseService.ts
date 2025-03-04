@@ -66,6 +66,11 @@ export class DatabaseService {
         return new Promise((resolve, reject) => {
             output.on('close', () => {
                 console.log(`Database successfully zipped: ${zipPath}`);
+                
+                // Remove the original folder after zipping
+                fs.rmSync(dbPath, { recursive: true, force: true });
+                console.log(`Database folder removed: ${dbPath}`);
+                
                 resolve(zipPath);
             });
 
