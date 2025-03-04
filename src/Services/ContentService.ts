@@ -41,7 +41,7 @@ export class ContentService {
         console.log(`Backup created at: ${backupPath}`);
 
         const output = fs.createWriteStream(zipPath);
-        const archive = archiver("zip", { zlib: { level: 9 } });
+        const archive = archiver("zip", { zlib: { level: 1 } });
 
         return new Promise((resolve, reject) => {
             output.on("close", () => {

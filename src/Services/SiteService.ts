@@ -60,7 +60,7 @@ export class SiteService {
         }
       );
 
-      await this.databaseService.copyDatabaseIfExists(dbContainerId, 'wp', 'db');
+      // await this.databaseService.copyDatabaseIfExists(dbContainerId, 'wp', 'db');
       await this.localEnvService.updateWpOptionsToHttp(dbContainerId);
       await this.localEnvService.updateUserPassword(dbContainerId, 'root');
 
@@ -73,10 +73,10 @@ export class SiteService {
   public async buildAndDeploy(domain: string, containerId: string): Promise<string> {
     try {
       await this.localEnvService.build(domain, containerId);
-      await this.databaseService.zipDatabase(domain);
-      await this.contentService.zipContents(domain);
       await this.dockerService.removeContainer('wp')
       await this.dockerService.removeContainer('db')
+      await this.contentService.zipContents(domain);
+      await this.databaseService.zipDatabase(domain);
       await this.publishService.publish(domain);
       console.log(`Site ${domain} has been published successfully.`);
 

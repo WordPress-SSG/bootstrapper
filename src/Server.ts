@@ -21,7 +21,7 @@ export class Server {
   }
 
   private configureRoutes(): void {
-    this.app.use("/api", siteRouter);
+    this.app.use("/api", cors(), siteRouter);
   }
 
   public start(port: number): void {

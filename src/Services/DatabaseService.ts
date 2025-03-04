@@ -12,7 +12,7 @@ export class DatabaseService {
     private static readonly MYSQL_IMAGE = "mariadb:10.5.12";
     public static readonly MYSQL_ENV_VARS = {
         MYSQL_ROOT_PASSWORD: "db",
-        MYSQL_DATABASE: "db",
+        MYSQL_DATABASE: "wp",
         MYSQL_USER: "db",
         MYSQL_PASSWORD: "db",
     };
@@ -61,7 +61,7 @@ export class DatabaseService {
         }
 
         const output = fs.createWriteStream(zipPath);
-        const archive = archiver('zip', { zlib: { level: 9 } });
+        const archive = archiver('zip', { zlib: { level: 1 } });
 
         return new Promise((resolve, reject) => {
             output.on('close', () => {
