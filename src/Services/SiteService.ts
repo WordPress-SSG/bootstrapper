@@ -53,11 +53,15 @@ export class SiteService {
           [`${contentPath}/var/www/html/wp-content/fonts/`]: "/var/www/html/wp-content/fonts/",
           [`${contentPath}/var/www/html/wp-content/languages/`]: "/var/www/html/wp-content/languages/",
           [`${contentPath}/var/www/html/wp-content/uploads/`]: "/var/www/html/wp-content/uploads/"
+        },
+        'always',
+        {
+          [siteData.domain]: "127.0.0.1"
         }
       );
 
       await this.databaseService.copyDatabaseIfExists(dbContainerId, 'wp', 'db');
-      await this.localEnvService.updateLocalEnvOptions(dbContainerId);
+      await this.localEnvService.updateWpOptionsToHttp(dbContainerId);
       await this.localEnvService.updateUserPassword(dbContainerId, 'root');
 
       return containerId;

@@ -26,15 +26,15 @@ export class PublishService {
                 "ghcr.io/wordpress-ssg/wrangler:main",
                 this.publishContainerName,
                 "bridge", // Use default bridge network
-                ["-c", "wrangler pages deploy /tmp/wp-dist/" + domain + "/ --project-name " + domain],
+                ["-c", "wrangler pages deploy /tmp/wp-dist/" + domain + "/ --project-name " + domain.replace('.', '-')],
                 domain,
                 {
-                    "CLOUDFLARE_API_TOKEN": "",
                     "WRANGLER_CONFIG_TOML": wranglerConfigToml,
                     "DOMAIN": domain
                 },
                 undefined, // No port needed
                 {
+                    "/root/.config/.wrangler/": "/root/.config/.wrangler/",
                     [`/tmp/wp-dist/${domain}/`]: `/tmp/wp-dist/${domain}/`, // Mount site content
                 },
                 'on-failure',
@@ -44,7 +44,7 @@ export class PublishService {
 
             // Stream logs in real-time
             await this.dockerService.getContainerLogs(containerId, (data) => {
-                process.stdout.write(data); // Print logs as they arrive
+                console.log("wrangler: " + data); // Print logs as they arrive
             })
 
             console.log(`Publishing completed for ${domain}`);
