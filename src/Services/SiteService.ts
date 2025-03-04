@@ -74,6 +74,7 @@ export class SiteService {
     try {
       await this.localEnvService.build(domain, containerId);
       await this.databaseService.zipDatabase(domain);
+      await this.contentService.zipContents(domain);
       await this.dockerService.removeContainer('wp')
       await this.dockerService.removeContainer('db')
       await this.publishService.publish(domain);
