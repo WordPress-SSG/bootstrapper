@@ -1,5 +1,6 @@
 import express, { Express } from "express";
 import http from "http";
+import cors from "cors";
 import siteRouter from "./Routes/siteRouter.js";
 
 export class Server {
@@ -14,6 +15,7 @@ export class Server {
   }
 
   private configureMiddleware(): void {
+    this.app.use(cors()); // Enable CORS
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
   }
