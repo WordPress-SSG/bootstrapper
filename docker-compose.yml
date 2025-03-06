@@ -14,7 +14,7 @@ services:
     environment:
       NODE_ENV: production
     command: ["node", "dist/index.js"]
-    restart: unless-stopped  # Ensures the container restarts if it crashes
+    restart: unless-stopped
     networks:
       - custom-network
 
@@ -25,6 +25,40 @@ services:
       - 8080:8080
     networks:
       - custom-network
+
+  static-server:
+    image: nginx:alpine
+    container_name: static-server
+    ports:
+      - "8086:80"
+    volumes:
+      - /tmp/databases/:/usr/share/nginx/html/databases/
+      - /tmp/contents/:/usr/share/nginx/html/contents/
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    restart: unless-stopped
+    networks:
+      - custom-network
+
+  novnc:
+    image: ghcr.io/qtvhao/docker-novnc:master
+    container_name: novnc
+    restart: unless-stopped
+    ports:
+      - "8386:8080"  # Web-based VNC access
+    environment:
+      VNC_PASSWORD: "secret"  # Change this to a secure password
+
+  browser:
+    image: ghcr.io/qtvhao/k8s-ubuntu-desktop:v0.0.15
+    container_name: browser
+    restart: unless-stopped
+    environment:
+      DISPLAY: "novnc:0"
+      VNC_PASSWORD: "secret"  # Change this to match noVNC's password
+    volumes:
+      - /dev/shm:/dev/shm  # Reduce Chrome crashes
+    depends_on:
+      - novnc
 
 networks:
   custom-network:
