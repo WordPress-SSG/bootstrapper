@@ -47,6 +47,8 @@ services:
       - "8386:8080"  # Web-based VNC access
     environment:
       VNC_PASSWORD: "secret"  # Change this to a secure password
+    depends_on:
+      - browser
 
   browser:
     image: ghcr.io/qtvhao/k8s-ubuntu-desktop:v0.0.15
@@ -57,8 +59,6 @@ services:
       VNC_PASSWORD: "secret"  # Change this to match noVNC's password
     volumes:
       - /dev/shm:/dev/shm  # Reduce Chrome crashes
-    depends_on:
-      - novnc
 
 networks:
   custom-network:
