@@ -63,7 +63,9 @@ export class LocalEnvService {
                 { "WRANGLER_CONFIG_TOML": wranglerConfigToml, "WP_CONTAINER_ID": wpContainerId },
                 undefined,
                 {
+                    "/tmp/contents/": "/tmp/contents/",
                     "/tmp/wp-dist/": `/data/`,
+                    "/wp-ssg/plugins/": `/wp-ssg/plugins/`,
                 },
                 'on-failure',
                 {

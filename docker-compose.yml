@@ -51,6 +51,7 @@ services:
       - browser
 
   browser:
+    stop_grace_period: 0s
     image: ghcr.io/qtvhao/k8s-ubuntu-desktop:v0.0.15
     container_name: browser
     restart: unless-stopped
